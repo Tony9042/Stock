@@ -22,11 +22,18 @@ st.set_page_config(
     page_title="台股自選股看盤系統",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 st.markdown("""
 <style>
+/* ══════════════════════════════════════════
+   基礎 & 全域
+══════════════════════════════════════════ */
+html, body, [class*="css"] {
+    -webkit-tap-highlight-color: transparent;
+}
+
 /* ── 快速卡片 ── */
 .metric-box {
     background: #1e2130;
@@ -104,6 +111,115 @@ st.markdown("""
     color: #b3e5fc;
     font-size: 0.92em;
     font-weight: 500;
+}
+
+/* ══════════════════════════════════════════
+   平板 (≤ 1024px)
+══════════════════════════════════════════ */
+@media screen and (max-width: 1024px) {
+    /* 讓 5 欄變 2 欄排列 */
+    [data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+    }
+    [data-testid="column"] {
+        min-width: 45% !important;
+        flex: 1 1 45% !important;
+    }
+    .metric-box .price { font-size: 1.35em; }
+}
+
+/* ══════════════════════════════════════════
+   手機 (≤ 768px)
+══════════════════════════════════════════ */
+@media screen and (max-width: 768px) {
+    /* 所有欄位強制滿版 */
+    [data-testid="column"] {
+        min-width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    /* 標題縮小 */
+    h1 { font-size: 1.4em !important; }
+    h2 { font-size: 1.15em !important; }
+    h3 { font-size: 1.05em !important; }
+
+    /* 快速卡片放大字體方便手指點 */
+    .metric-box {
+        padding: 14px 16px;
+        margin: 6px 0;
+    }
+    .metric-box .code-name { font-size: 0.9em; }
+    .metric-box .price     { font-size: 1.8em; }
+    .metric-box .scores    { font-size: 0.88em; }
+    .metric-box .suggest   { font-size: 0.86em; }
+
+    /* 提醒框字體加大 */
+    .alert-danger, .alert-warning,
+    .alert-success, .alert-info {
+        font-size: 1em;
+        padding: 10px 14px;
+    }
+
+    /* Dataframe 水平捲動 */
+    [data-testid="stDataFrame"] > div {
+        overflow-x: auto !important;
+    }
+
+    /* 按鈕加大點擊區 */
+    button[kind="primary"],
+    button[kind="secondary"] {
+        min-height: 48px !important;
+        font-size: 1em !important;
+    }
+
+    /* Tab 標籤縮短 */
+    .stTabs [data-baseweb="tab"] {
+        font-size: 0.78em !important;
+        padding: 8px 6px !important;
+    }
+
+    /* Metric 元件放大 */
+    [data-testid="stMetric"] label {
+        font-size: 0.85em !important;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 1.3em !important;
+    }
+
+    /* Sidebar 預設收合，漢堡選單仍可點 */
+    [data-testid="collapsedControl"] {
+        display: flex !important;
+    }
+
+    /* Plotly 圖表全寬 */
+    .js-plotly-plot {
+        width: 100% !important;
+    }
+
+    /* Radio 橫排改直排 */
+    [data-testid="stRadio"] > div {
+        flex-direction: column !important;
+        gap: 4px !important;
+    }
+
+    /* Slider 加大觸控點 */
+    [data-testid="stSlider"] > div > div > div {
+        height: 24px !important;
+    }
+}
+
+/* ══════════════════════════════════════════
+   小手機 (≤ 480px)
+══════════════════════════════════════════ */
+@media screen and (max-width: 480px) {
+    h1 { font-size: 1.2em !important; }
+    .metric-box .price { font-size: 2em; }
+
+    /* Tab 文字再縮 */
+    .stTabs [data-baseweb="tab"] {
+        font-size: 0.70em !important;
+        padding: 6px 4px !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -434,11 +550,11 @@ with tab_ov:
     # 快速卡片
     st.divider()
     st.subheader("快速卡片")
-    cols = st.columns(min(4, len(filtered)))
+    cols = st.columns(2)          # 2欄：手機CSS會疊成1欄，桌機看起來整齊
     for i, (code, data) in enumerate(filtered.items()):
         rt = data.get("realtime") or {}
         an = data.get("analysis") or {}
-        with cols[i % 4]:
+        with cols[i % 2]:
             price   = rt.get("price")
             chg_pct = rt.get("change_pct")
             cls = "up" if (chg_pct or 0) > 0 else ("down" if (chg_pct or 0) < 0 else "neutral")
@@ -636,7 +752,8 @@ with tab_detail:
     if not is_rt:
         st.info("⚠️ 無法取得即時報價（可能休市或代號有誤），顯示最近收盤資料。")
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    # 第一列：3欄（手機CSS疊成1欄）
+    c1, c2, c3 = st.columns(3)
     def _m(label, val, delta=None):
         st.metric(label, f"{val:.2f}" if val else "-",
                   delta=f"{delta:+.2f}" if delta is not None else None)
@@ -644,35 +761,32 @@ with tab_detail:
     with c2:
         pct_str = f"{chg_pct:+.2f}%" if chg_pct is not None else "-"
         st.metric("漲跌幅", pct_str)
-    with c3: _m("今高", hi)
-    with c4: _m("今低", lo)
-    with c5: _m("開盤", op)
-
-    c6, c7, c8, c9 = st.columns(4)
-    with c6:
+    with c3:
         v_str = f"{vol/1000:.1f}K張" if vol and vol >= 1000 else (f"{vol:.0f}張" if vol else "-")
         st.metric("成交量", v_str)
-    with c7: st.metric("漲停板", f"{lmt_up:.2f}" if lmt_up else "-")
-    with c8: st.metric("跌停板", f"{lmt_dn:.2f}" if lmt_dn else "-")
-    with c9:
+
+    # 第二列：4欄
+    c4, c5, c6, c7 = st.columns(4)
+    with c4: _m("今高", hi)
+    with c5: _m("今低", lo)
+    with c6: _m("開盤", op)
+    with c7:
         flags = []
-        if near_up: flags.append("🔴接近漲停")
-        if near_dn: flags.append("🔵接近跌停")
+        if near_up: flags.append("🔴漲停")
+        if near_dn: flags.append("🔵跌停")
         st.metric("警示", " ".join(flags) if flags else "無")
 
     # ── 技術評分 ──────────────────────────────────────────────
     st.divider()
-    sc1, sc2, sc3, sc4 = st.columns(4)
+    sc1, sc2 = st.columns(2)
     with sc1:
         st.metric("短期評分", f"{an.get('short_score',0):.0f}/100",
                   an.get("short_label", "-"))
+        st.metric("長期評分", f"{an.get('long_score',0):.0f}/100",
+                  an.get("long_label", "-"))
     with sc2:
         st.metric("中期評分", f"{an.get('mid_score',0):.0f}/100",
                   an.get("mid_label", "-"))
-    with sc3:
-        st.metric("長期評分", f"{an.get('long_score',0):.0f}/100",
-                  an.get("long_label", "-"))
-    with sc4:
         st.metric("綜合評分", f"{an.get('total_score',0):.0f}/100",
                   f"💡 {an.get('suggestion', '-')}")
 
@@ -748,7 +862,7 @@ with tab_detail:
         st.markdown("**📐 價格與均線距離**")
         sma_def = [("SMA5","sma5"),("SMA10","sma10"),("SMA20","sma20"),
                    ("SMA60","sma60"),("SMA120","sma120")]
-        sma_cols = st.columns(5)
+        sma_cols = st.columns(3)   # 桌機3欄，手機CSS疊成1欄
         for ci, (label, col_n) in enumerate(sma_def):
             sma_v = gv(col_n)
             with sma_cols[ci]:
@@ -777,7 +891,7 @@ with tab_detail:
 
         # 振盪指標狀態卡
         st.markdown("**🎛 振盪指標狀態**")
-        ind2_cols = st.columns(4)
+        ind2_cols = st.columns(2)   # 桌機2欄，手機疊成1欄
 
         # KD 卡
         K_v = gv("K"); D_v = gv("D"); J_v = gv("J")
@@ -818,7 +932,7 @@ with tab_detail:
         # MACD 卡
         macd_v = gv("macd"); sig_v = gv("macd_signal"); hist_v = gv("macd_hist")
         macd_p = gvp("macd_hist")
-        with ind2_cols[2]:
+        with ind2_cols[0]:
             if macd_v is not None:
                 trend = ""
                 if hist_v is not None and macd_p is not None:
@@ -834,7 +948,7 @@ with tab_detail:
 
         # 布林通道卡
         bb_u = gv("bb_upper"); bb_m = gv("bb_middle"); bb_l = gv("bb_lower")
-        with ind2_cols[3]:
+        with ind2_cols[1]:
             if bb_u and bb_l and price:
                 bw = bb_u - bb_l
                 pos = (price - bb_l) / bw * 100 if bw > 0 else 50
@@ -855,7 +969,7 @@ with tab_detail:
         st.markdown("")
         h20v = gv("high_20"); lo20v = gv("low_20")
         h60v = gv("high_60"); lo60v = gv("low_60")
-        hl_cols = st.columns(4)
+        hl_cols = st.columns(2)
         def hl_card(label, val, is_high):
             if val and price:
                 diff = (price - val) / val * 100
@@ -865,10 +979,12 @@ with tab_detail:
                 <div style="font-size:1.1em;color:#fff;font-weight:600">{val:.2f}</div>
                 <div style="font-size:0.85em;color:{color}">{diff:+.1f}%</div></div>"""
             return f"""<div style="background:#1e2130;border-radius:8px;padding:10px;text-align:center"><div style="color:#555">{label}: -</div></div>"""
-        with hl_cols[0]: st.markdown(hl_card("20日最高",h20v,True),  unsafe_allow_html=True)
-        with hl_cols[1]: st.markdown(hl_card("20日最低",lo20v,False), unsafe_allow_html=True)
-        with hl_cols[2]: st.markdown(hl_card("60日最高",h60v,True),  unsafe_allow_html=True)
-        with hl_cols[3]: st.markdown(hl_card("60日最低",lo60v,False), unsafe_allow_html=True)
+        with hl_cols[0]:
+            st.markdown(hl_card("20日最高",h20v,True),  unsafe_allow_html=True)
+            st.markdown(hl_card("60日最高",h60v,True),  unsafe_allow_html=True)
+        with hl_cols[1]:
+            st.markdown(hl_card("20日最低",lo20v,False), unsafe_allow_html=True)
+            st.markdown(hl_card("60日最低",lo60v,False), unsafe_allow_html=True)
 
     # ── 互動圖表 ──────────────────────────────────────────────
     st.divider()
