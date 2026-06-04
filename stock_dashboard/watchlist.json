@@ -1,0 +1,122 @@
+{
+  "stocks": [
+    {
+      "code": "2330",
+      "name": "台積電",
+      "market": "tse",
+      "is_etf": false,
+      "theme": [
+        "半導體",
+        "AI"
+      ]
+    },
+    {
+      "code": "0050",
+      "name": "元大台灣50",
+      "market": "tse",
+      "is_etf": true,
+      "theme": [
+        "ETF"
+      ]
+    },
+    {
+      "code": "00713",
+      "name": "元大高息低波",
+      "market": "tse",
+      "is_etf": true,
+      "theme": [
+        "ETF",
+        "高息"
+      ]
+    },
+    {
+      "code": "00919",
+      "name": "群益台灣精選高息",
+      "market": "tse",
+      "is_etf": true,
+      "theme": [
+        "ETF",
+        "高息"
+      ]
+    },
+    {
+      "code": "00981A",
+      "name": "主動統一台股增長",
+      "market": "tse",
+      "is_etf": true,
+      "theme": [
+        "ETF"
+      ]
+    },
+    {
+      "code": "2308",
+      "name": "台達電",
+      "market": "tse",
+      "is_etf": false,
+      "theme": [
+        "電力",
+        "AI"
+      ]
+    },
+    {
+      "code": "2382",
+      "name": "廣達",
+      "market": "tse",
+      "is_etf": false,
+      "theme": [
+        "AI",
+        "伺服器"
+      ]
+    },
+    {
+      "code": "3017",
+      "name": "奇鋐",
+      "market": "otc",
+      "is_etf": false,
+      "theme": [
+        "散熱",
+        "AI"
+      ]
+    },
+    {
+      "code": "3037",
+      "name": "欣興",
+      "market": "otc",
+      "is_etf": false,
+      "theme": [
+        "PCB",
+        "半導體"
+      ]
+    },
+    {
+      "code": "6669",
+      "name": "緯穎",
+      "market": "tse",
+      "is_etf": false,
+      "theme": [
+        "AI",
+        "伺服器",
+        "資料中心"
+      ]
+    },
+    {
+      "code": "6770",
+      "name": "力積電",
+      "market": "tse",
+      "is_etf": false,
+      "theme": [
+        "半導體",
+        "晶圓代工"
+      ]
+    },
+    {
+      "code": "6116",
+      "name": "彩晶",
+      "market": "otc",
+      "is_etf": false,
+      "theme": [
+        "面板"
+      ]
+    }
+  ]
+}
