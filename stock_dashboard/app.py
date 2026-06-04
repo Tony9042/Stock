@@ -34,6 +34,126 @@ html, body, [class*="css"] {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* ── 頁首狀態列 ── */
+.header-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.header-title {
+    font-size: 1.6em;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0;
+    letter-spacing: -0.01em;
+}
+.badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+.badge-open   { background:#0a3d1f; color:#00e676; border:1px solid #00e676; }
+.badge-closed { background:#2d2d2d; color:#90a4ae; border:1px solid #555; }
+.badge-alert  { background:#4a1010; color:#ff5252; border:1px solid #ff5252; }
+
+/* ── 市場快照卡 ── */
+.snap-card {
+    background: #1e2130;
+    border: 1px solid #2d3148;
+    border-radius: 10px;
+    padding: 14px 18px;
+    text-align: center;
+}
+.snap-card .snap-label {
+    font-size: 0.76em;
+    color: #8899bb;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+}
+.snap-card .snap-val {
+    font-size: 1.5em;
+    font-weight: 800;
+    color: #ffffff;
+}
+.snap-card .snap-sub {
+    font-size: 0.78em;
+    color: #8899bb;
+    margin-top: 2px;
+}
+
+/* ── Sidebar 統計列 ── */
+.sb-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #1e2130;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 4px 0;
+    font-size: 0.88em;
+}
+.sb-stat .sb-label { color: #8899bb; }
+.sb-stat .sb-val   { color: #ffffff; font-weight: 700; }
+
+/* ── 策略摘要卡 ── */
+.strategy-card {
+    background: linear-gradient(135deg, #1e2130 0%, #16213e 100%);
+    border: 1px solid #2d3148;
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 12px;
+}
+.strategy-card .sc-title {
+    font-size: 0.8em;
+    color: #8899bb;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+}
+.strategy-card .sc-suggestion {
+    font-size: 1.4em;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+.strategy-card .sc-body {
+    font-size: 0.88em;
+    color: #c0c8e8;
+    line-height: 1.6;
+}
+
+/* ── 異常提醒：個股群組 ── */
+.alert-stock-header {
+    font-size: 0.95em;
+    font-weight: 700;
+    color: #c0c8e8;
+    padding: 10px 0 4px 0;
+    border-bottom: 1px solid #2d3148;
+    margin-bottom: 6px;
+}
+.alert-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.alert-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 16px;
+    font-size: 0.82em;
+    font-weight: 600;
+}
+.tag-danger  { background:#4a1010; color:#ffcdd2; border:1px solid #ff1744; }
+.tag-warning { background:#4a3000; color:#ffe0b2; border:1px solid #ff9100; }
+.tag-success { background:#0a3d1f; color:#b9f6ca; border:1px solid #00e676; }
+.tag-info    { background:#0d2540; color:#b3e5fc; border:1px solid #40c4ff; }
+
 /* ── 快速卡片 ── */
 .metric-box {
     background: #1e2130;
@@ -279,7 +399,44 @@ def do_refresh():
 # SIDEBAR
 # ══════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.title("📋 自選股管理")
+    # ── 市場狀態 ──────────────────────────────────────────────
+    _trading = is_trading_hours()
+    _mkt_badge = ("🟢&nbsp;交易中" if _trading else "⏸&nbsp;休市中")
+    _mkt_cls   = "badge-open" if _trading else "badge-closed"
+    _now_str   = datetime.now().strftime("%H:%M")
+    st.markdown(
+        f"""<div style="display:flex;align-items:center;justify-content:space-between;
+            padding:10px 0 6px 0">
+          <span style="font-size:1.1em;font-weight:800;color:#fff">📋 自選股管理</span>
+          <span class="badge {_mkt_cls}">{_mkt_badge}</span>
+        </div>
+        <div style="font-size:0.78em;color:#8899bb;margin-bottom:8px">台灣時間 {_now_str}</div>""",
+        unsafe_allow_html=True,
+    )
+
+    # ── 自選股統計（有資料時顯示）────────────────────────────
+    if st.session_state.stock_data:
+        _stocks = st.session_state.watchlist["stocks"]
+        _n_etf  = sum(1 for s in _stocks if s.get("is_etf"))
+        _n_stk  = len(_stocks) - _n_etf
+        _up = _dn = _flat = 0
+        for _d in st.session_state.stock_data.values():
+            _cp = (_d.get("realtime") or {}).get("change_pct", 0) or 0
+            if   _cp > 0.05: _up   += 1
+            elif _cp < -0.05:_dn   += 1
+            else:            _flat += 1
+        st.markdown(f"""
+<div class="sb-stat"><span class="sb-label">自選股總數</span>
+  <span class="sb-val">{len(_stocks)}（ETF {_n_etf} ／ 個股 {_n_stk}）</span></div>
+<div class="sb-stat">
+  <span class="sb-label">今日漲跌</span>
+  <span class="sb-val">
+    <span style="color:#ff5252">▲{_up}</span>&nbsp;
+    <span style="color:#00e676">▼{_dn}</span>&nbsp;
+    <span style="color:#90a4ae">─{_flat}</span>
+  </span>
+</div>""", unsafe_allow_html=True)
+    st.markdown("")
 
     # ── 新增股票 ──────────────────────────────────────────────
     with st.expander("➕ 新增股票"):
@@ -389,7 +546,25 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════
 # MAIN CONTENT
 # ══════════════════════════════════════════════════════════════
-st.title("📈 台股自選股看盤與評估系統")
+# ── 頁首狀態列 ───────────────────────────────────────────────
+_trading_main = is_trading_hours()
+_badge_html = (
+    '<span class="badge badge-open">🟢 交易中</span>'
+    if _trading_main else
+    '<span class="badge badge-closed">⏸ 休市</span>'
+)
+_refresh_str = (
+    f'<span style="font-size:0.78em;color:#8899bb">最後更新 {st.session_state.last_refresh.strftime("%H:%M:%S")}</span>'
+    if st.session_state.last_refresh else ""
+)
+st.markdown(
+    f"""<div class="header-bar">
+      <span class="header-title">📈 台股自選股</span>
+      {_badge_html}
+      {_refresh_str}
+    </div>""",
+    unsafe_allow_html=True,
+)
 
 # ── 自動刷新執行 ──────────────────────────────────────────────
 if st.session_state.auto_refresh and is_trading_hours() and st.session_state.stock_data:
@@ -435,9 +610,11 @@ if not filtered:
     st.warning("無符合條件的股票，請調整篩選條件。")
     st.stop()
 
-# ── Tabs ──────────────────────────────────────────────────────
+# ── Tab 標題（加異常數） ───────────────────────────────────────
+_total_alerts = sum(len(d.get("alerts", [])) for d in filtered.values())
+_alert_label  = f"🚨 異常提醒 ({_total_alerts})" if _total_alerts else "🚨 異常提醒"
 tab_ov, tab_alert, tab_rank, tab_detail = st.tabs(
-    ["📊 總覽", "🚨 今日異常提醒", "🏆 排行榜", "📈 個股詳細分析"]
+    ["📊 總覽", _alert_label, "🏆 排行榜", "📈 個股詳細分析"]
 )
 
 
@@ -445,6 +622,63 @@ tab_ov, tab_alert, tab_rank, tab_detail = st.tabs(
 # TAB 1：總覽
 # ════════════════════════════════════════════════════════════
 with tab_ov:
+    # ── 市場快照橫條 ──────────────────────────────────────────
+    _snap_up = _snap_dn = _snap_flat = 0
+    _chg_vals, _prices = [], []
+    _best_code = _best_pct = _worst_code = _worst_pct = None
+    for _code, _d in filtered.items():
+        _rt = _d.get("realtime") or {}
+        _cp = _rt.get("change_pct") or 0
+        _pr = _rt.get("price")
+        if   _cp >  0.05: _snap_up   += 1
+        elif _cp < -0.05: _snap_dn   += 1
+        else:             _snap_flat += 1
+        _chg_vals.append(_cp)
+        if _pr: _prices.append(_pr)
+        if _best_pct is None or _cp > _best_pct:
+            _best_pct, _best_code = _cp, _code
+        if _worst_pct is None or _cp < _worst_pct:
+            _worst_pct, _worst_code = _cp, _code
+    _avg_chg = sum(_chg_vals) / len(_chg_vals) if _chg_vals else 0
+
+    def _snap_name(code):
+        d = filtered.get(code, {})
+        return (d.get("realtime") or {}).get("name") or d.get("info", {}).get("name", code)
+
+    sn1, sn2, sn3, sn4, sn5 = st.columns(5)
+    with sn1:
+        st.markdown(f"""<div class="snap-card">
+          <div class="snap-label">上漲</div>
+          <div class="snap-val" style="color:#ff5252">{_snap_up}</div>
+          <div class="snap-sub">支</div></div>""", unsafe_allow_html=True)
+    with sn2:
+        st.markdown(f"""<div class="snap-card">
+          <div class="snap-label">下跌</div>
+          <div class="snap-val" style="color:#00e676">{_snap_dn}</div>
+          <div class="snap-sub">支</div></div>""", unsafe_allow_html=True)
+    with sn3:
+        st.markdown(f"""<div class="snap-card">
+          <div class="snap-label">平盤</div>
+          <div class="snap-val" style="color:#90a4ae">{_snap_flat}</div>
+          <div class="snap-sub">支</div></div>""", unsafe_allow_html=True)
+    with sn4:
+        _bc = "#ff5252" if _best_pct and _best_pct > 0 else "#90a4ae"
+        _bname = _snap_name(_best_code) if _best_code else "-"
+        st.markdown(f"""<div class="snap-card">
+          <div class="snap-label">今日最強</div>
+          <div class="snap-val" style="color:{_bc};font-size:1.1em">{_bname}</div>
+          <div class="snap-sub" style="color:{_bc}">{_best_pct:+.2f}%</div></div>""",
+          unsafe_allow_html=True)
+    with sn5:
+        _wc = "#00e676" if _worst_pct and _worst_pct < 0 else "#90a4ae"
+        _wname = _snap_name(_worst_code) if _worst_code else "-"
+        st.markdown(f"""<div class="snap-card">
+          <div class="snap-label">今日最弱</div>
+          <div class="snap-val" style="color:{_wc};font-size:1.1em">{_wname}</div>
+          <div class="snap-sub" style="color:{_wc}">{_worst_pct:+.2f}%</div></div>""",
+          unsafe_allow_html=True)
+
+    st.markdown("")
     st.subheader("自選股總覽")
 
     rows = []
@@ -582,34 +816,75 @@ with tab_ov:
 
 
 # ════════════════════════════════════════════════════════════
-# TAB 2：今日異常提醒
+# TAB 2：今日異常提醒（以股票分組）
 # ════════════════════════════════════════════════════════════
 with tab_alert:
     st.subheader("🚨 今日異常提醒")
 
-    all_alerts = []
-    for code, data in filtered.items():
-        name = (data.get("realtime") or {}).get("name") or data["info"].get("name", code)
-        for a in (data.get("alerts") or []):
-            all_alerts.append({"code": code, "name": name, **a})
-
-    if not all_alerts:
-        st.success("目前無異常訊號。")
+    # 統計摘要
+    _all_alts = [(code, data) for code, data in filtered.items()
+                 if data.get("alerts")]
+    if not _all_alts:
+        st.success("✅ 目前自選股無任何異常訊號，持續觀察中。")
     else:
-        severity_label = {"danger": "🔴 高", "warning": "🟠 中", "success": "🟢", "info": "🔵 資訊"}
-        # 依 severity 分組顯示
-        for sev in ["danger", "warning", "success", "info"]:
-            group = [a for a in all_alerts if a["severity"] == sev]
-            if not group:
-                continue
-            st.markdown(f"**{severity_label.get(sev, sev)}**")
-            for a in group:
-                st.markdown(
-                    f'<div class="alert-{sev}">'
-                    f'<b>{a["code"]} {a["name"]}</b> — {a["type"]}'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
+        # 危險度排序：有 danger 的放前面
+        def _sev_score(d):
+            sevs = [a["severity"] for a in d.get("alerts", [])]
+            order = {"danger":0,"warning":1,"success":2,"info":3}
+            return min(order.get(s,9) for s in sevs) if sevs else 9
+
+        sorted_stocks = sorted(_all_alts, key=lambda x: _sev_score(x[1]))
+
+        # 全域彙總標籤列
+        _danger_n  = sum(1 for _,d in sorted_stocks for a in d.get("alerts",[]) if a["severity"]=="danger")
+        _warn_n    = sum(1 for _,d in sorted_stocks for a in d.get("alerts",[]) if a["severity"]=="warning")
+        _good_n    = sum(1 for _,d in sorted_stocks for a in d.get("alerts",[]) if a["severity"]=="success")
+        _info_n    = sum(1 for _,d in sorted_stocks for a in d.get("alerts",[]) if a["severity"]=="info")
+        st.markdown(
+            f'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">'
+            f'<span class="badge badge-alert">🔴 高風險 {_danger_n}</span>'
+            f'<span class="badge" style="background:#4a3000;color:#ffe0b2;border:1px solid #ff9100">🟠 注意 {_warn_n}</span>'
+            f'<span class="badge" style="background:#0a3d1f;color:#b9f6ca;border:1px solid #00e676">🟢 利多 {_good_n}</span>'
+            f'<span class="badge" style="background:#0d2540;color:#b3e5fc;border:1px solid #40c4ff">🔵 資訊 {_info_n}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        # 每支股票一組
+        for code, data in sorted_stocks:
+            rt   = data.get("realtime") or {}
+            an   = data.get("analysis") or {}
+            name = rt.get("name") or data["info"].get("name", code)
+            price= rt.get("price"); chg_pct = rt.get("change_pct")
+            alts = data.get("alerts", [])
+            p_str  = f"{price:.2f}" if price else "-"
+            cp_str = f"{chg_pct:+.2f}%" if chg_pct is not None else ""
+            cp_col = "#ff5252" if (chg_pct or 0)>0 else ("#00e676" if (chg_pct or 0)<0 else "#90a4ae")
+
+            tags_html = "".join(
+                f'<span class="alert-tag tag-{a["severity"]}">{a["type"]}</span>'
+                for a in alts
+            )
+            suggestion = an.get("suggestion", "-")
+
+            st.markdown(
+                f"""<div style="background:#1a1d2e;border:1px solid #2d3148;border-radius:10px;
+                    padding:14px 16px;margin-bottom:10px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;
+                      margin-bottom:8px;flex-wrap:wrap;gap:6px">
+                    <span style="font-size:1em;font-weight:700;color:#fff">{code} {name}</span>
+                    <span>
+                      <span style="font-size:1.1em;font-weight:700;color:#fff">{p_str}</span>
+                      &nbsp;<span style="color:{cp_col};font-weight:700">{cp_str}</span>
+                    </span>
+                  </div>
+                  <div class="alert-tags">{tags_html}</div>
+                  <div style="font-size:0.82em;color:#8899bb">💡 建議：
+                    <span style="color:#d0d8f0">{suggestion}</span>
+                  </div>
+                </div>""",
+                unsafe_allow_html=True,
+            )
 
 
 # ════════════════════════════════════════════════════════════
@@ -747,8 +1022,58 @@ with tab_detail:
     near_up = rt.get("near_limit_up", False)
     near_dn = rt.get("near_limit_down", False)
 
-    st.markdown(f"### {name}（{sel_code}） <small style='color:#aaa;font-size:0.6em'>[{rt_tag}]</small>",
-                unsafe_allow_html=True)
+    # ── 策略摘要卡（最頂端，一眼看重點）──────────────────────
+    _sg  = an.get("suggestion", "-")
+    _ss  = an.get("short_score", 0)
+    _ms  = an.get("mid_score",   0)
+    _ls  = an.get("long_score",  0)
+    _tot = an.get("total_score", 0)
+    _sg_colors = {
+        "可小量試單":       ("#00e676", "#0a3d1f"),
+        "續抱":             ("#69f0ae", "#0d2e14"),
+        "長期定期定額即可": ("#42a5f5", "#0d2540"),
+        "等拉回":           ("#ffd740", "#3d3000"),
+        "分批停利":         ("#ffa726", "#3d2200"),
+        "不建議追價":       ("#ff9100", "#3d2200"),
+        "跌破支撐停損":     ("#ff5252", "#4a1010"),
+    }
+    _sg_fc, _sg_bg = _sg_colors.get(_sg, ("#c0c8e8", "#1e2130"))
+
+    # 擷取文字分析的第一行建議句
+    _text_lines = an.get("text", "").split("\n")
+    _suggest_detail = next((l for l in _text_lines if l.startswith("建議：")), "")
+
+    p_disp = f"{price:.2f}" if price else "-"
+    cp_disp = f"{chg_pct:+.2f}%" if chg_pct is not None else ""
+    cp_col_ = "#ff5252" if (chg_pct or 0)>0 else ("#00e676" if (chg_pct or 0)<0 else "#90a4ae")
+
+    st.markdown(
+        f"""<div class="strategy-card" style="border-color:{_sg_fc}22">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+            <div>
+              <div class="sc-title">{sel_code} · {name} · {rt_tag}</div>
+              <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px">
+                <span style="font-size:2em;font-weight:800;color:#fff">{p_disp}</span>
+                <span style="font-size:1.1em;font-weight:700;color:{cp_col_}">{cp_disp}</span>
+              </div>
+              <div class="sc-suggestion" style="color:{_sg_fc}">💡 {_sg}</div>
+              <div class="sc-body">{_suggest_detail.replace("建議：","")}</div>
+            </div>
+            <div style="text-align:right;min-width:120px">
+              <div style="font-size:0.75em;color:#8899bb;margin-bottom:4px">短／中／長／綜合</div>
+              <div style="font-size:1.3em;font-weight:800;color:#fff;letter-spacing:1px">
+                <span style="color:#ff8a65">{_ss:.0f}</span> /
+                <span style="color:#42a5f5">{_ms:.0f}</span> /
+                <span style="color:#66bb6a">{_ls:.0f}</span> /
+                <span style="color:#ffd740">{_tot:.0f}</span>
+              </div>
+              <div style="font-size:0.75em;color:#8899bb;margin-top:6px">評分滿分 100</div>
+            </div>
+          </div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
     if not is_rt:
         st.info("⚠️ 無法取得即時報價（可能休市或代號有誤），顯示最近收盤資料。")
 
