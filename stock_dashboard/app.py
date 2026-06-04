@@ -401,16 +401,18 @@ def do_refresh():
 with st.sidebar:
     # ── 市場狀態 ──────────────────────────────────────────────
     _trading = is_trading_hours()
-    _mkt_badge = ("🟢&nbsp;交易中" if _trading else "⏸&nbsp;休市中")
-    _mkt_cls   = "badge-open" if _trading else "badge-closed"
+    _mkt_badge = "🟢 交易中" if _trading else "⏸ 休市中"
+    _mkt_style2 = "background:#0a3d1f;color:#00e676;border:1px solid #00e676" \
+                  if _trading else "background:#2d2d2d;color:#90a4ae;border:1px solid #555"
     _now_str   = datetime.now().strftime("%H:%M")
     st.markdown(
-        f"""<div style="display:flex;align-items:center;justify-content:space-between;
-            padding:10px 0 6px 0">
-          <span style="font-size:1.1em;font-weight:800;color:#fff">📋 自選股管理</span>
-          <span class="badge {_mkt_cls}">{_mkt_badge}</span>
-        </div>
-        <div style="font-size:0.78em;color:#8899bb;margin-bottom:8px">台灣時間 {_now_str}</div>""",
+        "".join([
+            '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 4px 0">',
+            '<span style="font-size:1.05em;font-weight:800;color:#ffffff">📋 自選股管理</span>',
+            f'<span style="display:inline-block;padding:2px 8px;border-radius:16px;font-size:0.75em;font-weight:700;{_mkt_style2}">{_mkt_badge}</span>',
+            '</div>',
+            f'<div style="font-size:0.78em;color:#8899bb;margin-bottom:8px">台灣時間 {_now_str}</div>',
+        ]),
         unsafe_allow_html=True,
     )
 
@@ -548,23 +550,24 @@ with st.sidebar:
 # ══════════════════════════════════════════════════════════════
 # ── 頁首狀態列 ───────────────────────────────────────────────
 _trading_main = is_trading_hours()
-_badge_html = (
-    '<span class="badge badge-open">🟢 交易中</span>'
-    if _trading_main else
-    '<span class="badge badge-closed">⏸ 休市</span>'
-)
-_refresh_str = (
-    f'<span style="font-size:0.78em;color:#8899bb">最後更新 {st.session_state.last_refresh.strftime("%H:%M:%S")}</span>'
-    if st.session_state.last_refresh else ""
-)
-st.markdown(
-    f"""<div class="header-bar">
-      <span class="header-title">📈 台股自選股</span>
-      {_badge_html}
-      {_refresh_str}
-    </div>""",
-    unsafe_allow_html=True,
-)
+_mkt_text  = "🟢 交易中" if _trading_main else "⏸ 休市"
+_mkt_style = "background:#0a3d1f;color:#00e676;border:1px solid #00e676" \
+             if _trading_main else \
+             "background:#2d2d2d;color:#90a4ae;border:1px solid #555"
+_upd_text  = f"更新 {st.session_state.last_refresh.strftime('%H:%M:%S')}" \
+             if st.session_state.last_refresh else ""
+
+_header_parts = [
+    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px">',
+    '<span style="font-size:1.6em;font-weight:800;color:#ffffff;margin:0">📈 台股自選股</span>',
+    f'<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.78em;font-weight:700;{_mkt_style}">{_mkt_text}</span>',
+]
+if _upd_text:
+    _header_parts.append(
+        f'<span style="font-size:0.78em;color:#8899bb">{_upd_text}</span>'
+    )
+_header_parts.append('</div>')
+st.markdown("".join(_header_parts), unsafe_allow_html=True)
 
 # ── 自動刷新執行 ──────────────────────────────────────────────
 if st.session_state.auto_refresh and is_trading_hours() and st.session_state.stock_data:
