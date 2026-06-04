@@ -1193,7 +1193,7 @@ with tab_detail:
         sma_cols = st.columns(3)   # 桌機3欄，手機CSS疊成1欄
         for ci, (label, col_n) in enumerate(sma_def):
             sma_v = gv(col_n)
-            with sma_cols[ci]:
+            with sma_cols[ci % 3]:
                 if sma_v and price:
                     diff = (price - sma_v) / sma_v * 100
                     above = price >= sma_v
