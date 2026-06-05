@@ -218,13 +218,35 @@ def _build_rt(rt_map, stock, hist, fallback_rt=None) -> dict:
     code = stock["code"].upper()
     rt   = rt_map.get(code, {})
 
-    if not rt:
-        # TWSE 抓不到 → 用歷史最後一筆
+    # ── 情況 A：TWSE 有資料但市場休市（z='-'，realtime=False）
+    #    → 用 yfinance 最後兩筆收盤，計算「上個交易日的漲跌」
+    if rt and not rt.get("realtime") and hist is not None and not hist.empty:
+        last = hist.iloc[-1]
+        prev = hist.iloc[-2] if len(hist) > 1 else last
+        ch   = float(last["Close"] - prev["Close"])
+        chp  = ch / float(prev["Close"]) * 100
+        date_str = str(last.name.date()) if hasattr(last.name, "date") else ""
+        rt.update({
+            "price":      float(last["Close"]),
+            "open":       float(last["Open"]),
+            "high":       float(last["High"]),
+            "low":        float(last["Low"]),
+            "volume":     float(last["Volume"]),
+            "prev_close": float(prev["Close"]),
+            "change":     ch,
+            "change_pct": chp,
+            "realtime":   False,
+            "update_time": date_str,
+        })
+
+    # ── 情況 B：TWSE 完全連不到 → 全用 yfinance
+    elif not rt:
         if hist is not None and not hist.empty:
             last = hist.iloc[-1]
             prev = hist.iloc[-2] if len(hist) > 1 else last
             ch   = float(last["Close"] - prev["Close"])
             chp  = ch / float(prev["Close"]) * 100
+            date_str = str(last.name.date()) if hasattr(last.name, "date") else ""
             rt = {
                 "code":           code,
                 "name":           stock.get("name", code),
@@ -241,7 +263,7 @@ def _build_rt(rt_map, stock, hist, fallback_rt=None) -> dict:
                 "near_limit_up":  False,
                 "near_limit_down":False,
                 "realtime":       False,
-                "update_time":    str(last.name.date()) if hasattr(last.name, "date") else "",
+                "update_time":    date_str,
             }
         elif fallback_rt:
             rt = dict(fallback_rt)

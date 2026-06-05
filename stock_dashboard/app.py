@@ -1046,8 +1046,10 @@ with tab_detail:
     name = rt.get("name") or inf.get("name", sel_code)
 
     # ── 基本資訊列 ────────────────────────────────────────────
-    is_rt = rt.get("realtime", False)
-    rt_tag = "即時" if is_rt else "非即時（歷史收盤）"
+    is_rt    = rt.get("realtime", False)
+    _upd_t   = rt.get("update_time", "")
+    _date_s  = _upd_t[:10] if _upd_t else ""
+    rt_tag   = "即時報價" if is_rt else (f"上個交易日收盤 {_date_s}" if _date_s else "非即時")
 
     price   = rt.get("price");   change  = rt.get("change")
     chg_pct = rt.get("change_pct")
@@ -1110,7 +1112,10 @@ with tab_detail:
     )
 
     if not is_rt:
-        st.info("⚠️ 無法取得即時報價（可能休市或代號有誤），顯示最近收盤資料。")
+        if is_trading_hours():
+            st.warning("⚠️ TWSE API 未回傳即時報價，顯示最近收盤資料，請稍後重試。")
+        else:
+            st.info(f"📋 市場休市中，顯示 {_date_s or '最近'} 收盤資料（含實際漲跌幅）。")
 
     # 第一列：3欄（手機CSS疊成1欄）
     c1, c2, c3 = st.columns(3)
