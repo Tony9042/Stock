@@ -12,7 +12,8 @@ from datetime import datetime, time as dtime
 import time
 
 from data_fetcher import (
-    get_stock_data, load_watchlist, save_watchlist, DEFAULT_WATCHLIST
+    get_stock_data, refresh_prices_only,
+    load_watchlist, save_watchlist, DEFAULT_WATCHLIST
 )
 from indicators import calculate_indicators
 from analyzer import analyze_stock, get_alerts
@@ -352,8 +353,10 @@ if "stock_data"   not in st.session_state:
     st.session_state.stock_data   = {}
 if "last_refresh" not in st.session_state:
     st.session_state.last_refresh = None
-if "loading"      not in st.session_state:
-    st.session_state.loading      = False
+if "loading"            not in st.session_state:
+    st.session_state.loading            = False
+if "last_price_refresh" not in st.session_state:
+    st.session_state.last_price_refresh = None
 if "auto_refresh" not in st.session_state:
     st.session_state.auto_refresh = False
 
@@ -376,7 +379,7 @@ def score_color(v: float) -> str:
     return "#ff5252"                # 紅：弱
 
 
-# ── 資料載入函式 ─────────────────────────────────────────────
+# ── 完整重整（含歷史K線，約 30–60 秒）───────────────────────
 def do_refresh():
     stocks = st.session_state.watchlist["stocks"]
     raw    = get_stock_data(stocks)
@@ -391,8 +394,27 @@ def do_refresh():
             "analysis": analyze_stock(code, rt, hist, data["info"]),
             "alerts":   get_alerts(code, rt, hist, data["info"]),
         }
-    st.session_state.stock_data   = processed
-    st.session_state.last_refresh = datetime.now()
+    st.session_state.stock_data    = processed
+    st.session_state.last_refresh  = datetime.now()
+    st.session_state.last_price_refresh = datetime.now()
+
+
+# ── 快速更新報價（只打 TWSE API，約 2–5 秒）─────────────────
+def do_price_refresh():
+    stocks   = st.session_state.watchlist["stocks"]
+    existing = st.session_state.stock_data
+    updated  = refresh_prices_only(stocks, existing)
+
+    # 重新計算 analysis / alerts（指標不變，只更新 realtime 欄位）
+    for code, data in updated.items():
+        rt   = data.get("realtime") or {}
+        hist = data.get("history")
+        inf  = data.get("info", {})
+        data["analysis"] = analyze_stock(code, rt, hist, inf)
+        data["alerts"]   = get_alerts(code, rt, hist, inf)
+
+    st.session_state.stock_data         = updated
+    st.session_state.last_price_refresh = datetime.now()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -497,15 +519,29 @@ with st.sidebar:
 
     st.divider()
 
-    # ── 重新整理 ──────────────────────────────────────────────
-    if st.button("🔄 重新整理資料", use_container_width=True, type="primary"):
-        with st.spinner("資料載入中，請稍候…"):
+    # ── 快速更新報價（秒級）─────────────────────────────────
+    _has_data = bool(st.session_state.stock_data)
+    if st.button("⚡ 快速更新報價", use_container_width=True, type="primary",
+                 disabled=not _has_data,
+                 help="只更新即時股價，約 2–5 秒（不重抓歷史K線）"):
+        with st.spinner("更新報價中…"):
+            do_price_refresh()
+        st.rerun()
+
+    if st.session_state.last_price_refresh:
+        _sec = int((datetime.now() - st.session_state.last_price_refresh).total_seconds())
+        _ago = f"{_sec}秒前" if _sec < 60 else f"{_sec//60}分{_sec%60}秒前"
+        st.caption(f"報價更新：{_ago}")
+
+    # ── 完整重整（含K線，慢）────────────────────────────────
+    if st.button("🔄 完整重整（含K線）", use_container_width=True,
+                 help="重新抓取歷史K線與技術指標，約 30–60 秒"):
+        with st.spinner("載入歷史資料中，請稍候…"):
             do_refresh()
-        st.success("✅ 資料更新完成！")
         st.rerun()
 
     if st.session_state.last_refresh:
-        st.caption(f"最後更新：{st.session_state.last_refresh.strftime('%Y-%m-%d %H:%M:%S')}")
+        st.caption(f"K線更新：{st.session_state.last_refresh.strftime('%m/%d %H:%M')}")
 
     st.divider()
 
@@ -554,8 +590,8 @@ _mkt_text  = "🟢 交易中" if _trading_main else "⏸ 休市"
 _mkt_style = "background:#0a3d1f;color:#00e676;border:1px solid #00e676" \
              if _trading_main else \
              "background:#2d2d2d;color:#90a4ae;border:1px solid #555"
-_upd_text  = f"更新 {st.session_state.last_refresh.strftime('%H:%M:%S')}" \
-             if st.session_state.last_refresh else ""
+_upd_src   = st.session_state.last_price_refresh or st.session_state.last_refresh
+_upd_text  = f"報價 {_upd_src.strftime('%H:%M:%S')}" if _upd_src else ""
 
 _header_parts = [
     '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px">',
@@ -571,13 +607,9 @@ st.markdown("".join(_header_parts), unsafe_allow_html=True)
 
 # ── 自動刷新執行 ──────────────────────────────────────────────
 if st.session_state.auto_refresh and is_trading_hours() and st.session_state.stock_data:
-    _ph = st.empty()
-    _last = st.session_state.last_refresh
-    if _last is None or (datetime.now() - _last).seconds >= refresh_interval:
-        with _ph.container():
-            st.info("🔄 自動刷新中…")
-        do_refresh()
-        _ph.empty()
+    _last_p = st.session_state.last_price_refresh
+    if _last_p is None or (datetime.now() - _last_p).seconds >= refresh_interval:
+        do_price_refresh()   # 快速路線，不擋畫面
         st.rerun()
 
 # 第一次進入：自動載入
